@@ -94,6 +94,9 @@ function App() {
   const [selectedIds, setSelectedIds] = useState(['egg', 'rice'])
   const [showLoading, setShowLoading] = useState(false)
   const loadingTimerRef = useRef(null)
+  const hideTimerRef = useRef(null)
+  const loadingStartRef = useRef(0)
+  const showLoadingSinceRef = useRef(0)
   const hasResultsRef = useRef(false)
 
   useEffect(() => {
@@ -105,31 +108,55 @@ function App() {
   }, [language])
 
   useEffect(() => {
-  useEffect(() => {
     hasResultsRef.current = results.length > 0
   }, [results.length])
 
+  useEffect(() => {
     if (loading) {
+      loadingStartRef.current = Date.now()
       if (loadingTimerRef.current) {
         clearTimeout(loadingTimerRef.current)
       }
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current)
+        hideTimerRef.current = null
+      }
       loadingTimerRef.current = setTimeout(() => {
         setShowLoading(true)
+        showLoadingSinceRef.current = Date.now()
       }, 250)
     } else {
       if (loadingTimerRef.current) {
         clearTimeout(loadingTimerRef.current)
         loadingTimerRef.current = null
       }
-      setShowLoading(false)
+      if (showLoading) {
+        const elapsed = Date.now() - showLoadingSinceRef.current
+        const minVisible = 400
+        const delay = Math.max(0, minVisible - elapsed)
+        if (delay == 0) {
+          setShowLoading(false)
+        } else {
+          hideTimerRef.current = setTimeout(() => {
+            setShowLoading(false)
+            hideTimerRef.current = null
+          }, delay)
+        }
+      } else {
+        setShowLoading(false)
+      }
     }
     return () => {
       if (loadingTimerRef.current) {
         clearTimeout(loadingTimerRef.current)
         loadingTimerRef.current = null
       }
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current)
+        hideTimerRef.current = null
+      }
     }
-  }, [loading])
+  }, [loading, showLoading])
 
   const ingredients = useMemo(() => {
     return selectedIds.map((id) => {
