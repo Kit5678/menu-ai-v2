@@ -20,7 +20,10 @@ app = FastAPI(title="Menu Recommender API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://menu-3jagyvn97-kit5678s-projects.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,6 +45,8 @@ class RecommendItem(BaseModel):
     seasonings_th: List[str] = []
     score: float
     matched: List[str]
+    missing_en: List[str] = []
+    missing_th: List[str] = []
     ai_reason: str | None = None
     ai_missing: List[str] = []
     ai_substitutes: List[str] = []
@@ -252,10 +257,14 @@ def recommend(payload: RecommendRequest) -> dict:
             if _to_canonical([original])[0] in overlap:
                 matched.append(original)
         missing = list(recipe_canon.difference(overlap))
-        display_map = {}
+        display_map_th = {}
+        display_map_en = {}
         for en_item, th_item in zip(recipe_en, recipe_th):
-            display_map[_to_canonical([en_item])[0]] = th_item if lang == "th" else en_item
-        missing_list = [display_map.get(val, val) for val in missing]
+            canon = _to_canonical([en_item])[0]
+            display_map_th[canon] = th_item
+            display_map_en[canon] = en_item
+        missing_list_th = [display_map_th.get(val, val) for val in missing]
+        missing_list_en = [display_map_en.get(val, val) for val in missing]
         scored.append(
             RecommendItem(
                 id=recipe.get("id"),
@@ -267,7 +276,9 @@ def recommend(payload: RecommendRequest) -> dict:
                 seasonings_th=recipe.get("seasonings_th", []),
                 score=score,
                 matched=sorted(set(matched)),
-                ai_missing=missing_list[:3],
+                missing_en=missing_list_en[:3],
+                missing_th=missing_list_th[:3],
+                ai_missing=(missing_list_th if lang == "th" else missing_list_en)[:3],
                 time_min=recipe.get("time_min"),
                 difficulty=recipe.get("difficulty"),
                 steps_en=recipe.get("steps_en", []),
