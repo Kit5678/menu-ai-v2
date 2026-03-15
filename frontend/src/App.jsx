@@ -266,7 +266,7 @@ function App() {
             </div>
           )}
         </div>
-        <div className={`cards ${showLoading ? 'loading' : ''}`}>
+        <div className="cards">
           {results.length === 0 && !loading && (
             <div className="empty">{t.empty}</div>
           )}

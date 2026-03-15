@@ -233,14 +233,6 @@ button:hover:not(:disabled) {
   animation: pulse 1.2s infinite;
 }
 
-.cards {
-  transition: filter 0.25s ease;
-}
-
-.cards.loading {
-  filter: saturate(0.98);
-}
-
 @keyframes pulse {
   0% {
     transform: scale(0.8);
