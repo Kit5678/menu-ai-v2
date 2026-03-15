@@ -23,6 +23,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://menu-3jagyvn97-kit5678s-projects.vercel.app",
+        "https://menu-nhiwxpcp8-kit5678s-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
