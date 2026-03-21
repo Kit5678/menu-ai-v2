@@ -1,28 +1,145 @@
-import { useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-function App() {
-  const [input, setInput] = useState('egg, rice, garlic')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [results, setResults] = useState([])
+const ingredientOptions = [
+  { th: 'ไข่', en: 'egg' },
+  { th: 'ไก่', en: 'chicken' },
+  { th: 'หมู', en: 'pork' },
+  { th: 'เนื้อวัว', en: 'beef' },
+  { th: 'กุ้ง', en: 'shrimp' },
+  { th: 'ปลาหมึก', en: 'squid' },
+  { th: 'เต้าหู้', en: 'tofu' },
+  { th: 'ข้าว', en: 'rice' },
+  { th: 'เส้นก๋วยเตี๋ยว', en: 'noodles' },
+  { th: 'วุ้นเส้น', en: 'vermicelli' },
+  { th: 'ขนมปัง', en: 'bread' },
+  { th: 'ถั่วฝักยาว', en: 'yardlong beans' },
+  { th: 'คะน้า', en: 'kale' },
+  { th: 'ผักบุ้ง', en: 'morning glory' },
+  { th: 'กะหล่ำปลี', en: 'cabbage' },
+  { th: 'แครอท', en: 'carrot' },
+  { th: 'มะเขือเทศ', en: 'tomato' },
+  { th: 'หอมใหญ่', en: 'onion' },
+  { th: 'เห็ด', en: 'mushroom' },
+  { th: 'แตงกวา', en: 'cucumber' },
+  { th: 'มะเขือยาว', en: 'eggplant' },
+  { th: 'มะเขือเปราะ', en: 'thai eggplant' },
+  { th: 'โหระพา', en: 'basil' },
+  { th: 'กระเทียม', en: 'garlic' },
+  { th: 'พริก', en: 'chili' },
+  { th: 'ขิง', en: 'ginger' },
+  { th: 'ต้นหอม', en: 'spring onion' },
+  { th: 'ผักชี', en: 'coriander' },
+  { th: 'มันฝรั่ง', en: 'potato' },
+  { th: 'ฟักทอง', en: 'pumpkin' },
+  { th: 'ข้าวโพด', en: 'corn' },
+  { th: 'พริกหวาน', en: 'bell pepper' },
+  { th: 'ถั่วงอก', en: 'bean sprouts' },
+  { th: 'มะนาว', en: 'lime' },
+  { th: 'ตะไคร้', en: 'lemongrass' },
+  { th: 'ข่า', en: 'galangal' },
+  { th: 'สับปะรด', en: 'pineapple' },
+  { th: 'บรอกโคลี', en: 'broccoli' },
+  { th: 'ดอกกะหล่ำ', en: 'cauliflower' },
+  { th: 'ผักโขม', en: 'spinach' },
+  { th: 'เซเลอรี', en: 'celery' },
+  { th: 'ผักกาดหอม', en: 'lettuce' },
+  { th: 'ผักกวางตุ้ง', en: 'bok choy' },
+  { th: 'สาหร่าย', en: 'seaweed' },
+  { th: 'ข้าวกล้อง', en: 'brown rice' },
+  { th: 'ปลาทู', en: 'mackerel' },
+  { th: 'ปลาแซลมอน', en: 'salmon' },
+  { th: 'ปูอัด', en: 'crab stick' },
+  { th: 'ไส้กรอก', en: 'sausage' },
+  { th: 'เบคอน', en: 'bacon' }
+]
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
+const translations = {
+  th: {
+    eyebrow: 'ผู้ช่วยแนะนำเมนูด้วย AI',
+    title: 'ไอเดียเมนูจากวัตถุดิบที่คุณมีอยู่แล้ว',
+    subhead: 'เลือกวัตถุดิบที่มี แล้วระบบจะจัดอันดับเมนูให้ทันที',
+    ingredientsLabel: 'เลือกวัตถุดิบจากรายการ',
+    recommend: 'แนะนำเมนู',
+    loading: 'กำลังโหลดผลลัพธ์...',
+    resultsTitle: 'ผลลัพธ์การจัดอันดับ',
+    resultsSubtitle: 'จัดอันดับตามความเหมือนของวัตถุดิบ',
+    empty: 'ยังไม่มีผลลัพธ์ ลองค้นหาอีกครั้ง',
+    matched: 'วัตถุดิบที่ตรงกัน',
+    missing: 'วัตถุดิบที่ขาด',
+    seasonings: 'เครื่องปรุง',
+    score: 'คะแนนความเหมาะสม',
+    detail: 'รายละเอียดเมนู',
+    time: 'เวลา',
+    minutes: 'นาที',
+    difficulty: 'ระดับความยาก',
+    steps: 'วิธีทำ',
+    clear: 'ล้างวัตถุดิบ',
+    noOverlap: 'ยังไม่ตรงกับวัตถุดิบที่เลือก',
+    apiError: 'เชื่อมต่อ API ไม่ได้ กรุณาตรวจสอบการเปิดบริการ Backend',
+    matchedSummary: (n) => `วัตถุดิบตรงกัน ${n} รายการ เหมาะสำหรับทำเมนูนี้`
+  },
+  en: {
+    eyebrow: 'Recipe matcher',
+    title: 'Menu ideas from your ingredients',
+    subhead: 'Pick what you have, and we will rank the best matching recipes.',
+    ingredientsLabel: 'Pick ingredients from the list',
+    recommend: 'Recommend',
+    loading: 'Loading results...',
+    resultsTitle: 'Ranked results',
+    resultsSubtitle: 'Top matches based on ingredient overlap.',
+    empty: 'No results yet. Run a search to see recommendations.',
+    matched: 'Matched ingredients',
+    missing: 'Missing ingredients',
+    seasonings: 'Seasonings',
+    score: 'Match score',
+    detail: 'View details',
+    time: 'Time',
+    minutes: 'min',
+    difficulty: 'Difficulty',
+    steps: 'Steps',
+    clear: 'Clear ingredients',
+    noOverlap: 'No direct overlap',
+    apiError: 'Cannot reach the API. Please check the backend service.',
+    matchedSummary: (n) => `${n} ingredients match. This recipe is a good fit.`
+  }
+}
+
+const difficultyMap = {
+  th: { easy: 'ง่าย', medium: 'ปานกลาง', hard: 'ยาก' },
+  en: { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
+}
+
+function App() {
+  const [selectedIds, setSelectedIds] = useState(['egg', 'rice'])
+  const [results, setResults] = useState([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [language, setLanguage] = useState('th')
+  const [theme, setTheme] = useState('light')
+  const [selectedRecipe, setSelectedRecipe] = useState(null)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
+
+  const ingredients = useMemo(() => {
+    return selectedIds.map((id) => {
+      const found = ingredientOptions.find((item) => item.en === id)
+      return language === 'th' ? found?.th || id : found?.en || id
+    })
+  }, [selectedIds, language])
+
+  const fetchResults = async () => {
     setError('')
     setLoading(true)
 
     try {
-      const ingredients = input
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-
       const response = await fetch(`${API_BASE}/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients, language: 'en' })
+        body: JSON.stringify({ ingredients, language })
       })
 
       if (!response.ok) {
@@ -32,66 +149,232 @@ function App() {
       const data = await response.json()
       setResults(data.results || [])
     } catch (err) {
-      setError('Cannot reach the API. Please check the backend service.')
+      setError(translations[language].apiError)
     } finally {
       setLoading(false)
     }
   }
 
+  const toggleIngredient = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const clearIngredients = () => {
+    setSelectedIds([])
+  }
+
+  const getRecipeName = (item) =>
+    language === 'th' ? item.name_th || item.name_en : item.name_en || item.name_th
+
+  const t = translations[language]
+
   return (
-    <div className="min-h-screen bg-[#f8f5f0] text-[#1f1b16]">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-12">
+    <div className="min-h-screen bg-[#f8f5f0] text-[#1f1b16] transition-colors duration-300 dark:bg-[#15130f] dark:text-[#f7efe5]">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            className="rounded-full border border-[#e6dac8] px-4 py-2 text-sm font-semibold transition dark:border-[#3b342b]"
+          >
+            {theme === 'light' ? 'Dark' : 'Light'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage(language === 'th' ? 'en' : 'th')}
+            className="rounded-full border border-[#e6dac8] px-4 py-2 text-sm font-semibold transition dark:border-[#3b342b]"
+          >
+            {language === 'th' ? 'EN' : 'TH'}
+          </button>
+        </div>
+
         <header className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.3em] text-[#7a6f63]">
-            Recipe matcher
+          <p className="text-xs uppercase tracking-[0.35em] text-[#7a6f63] dark:text-[#cbbfb3]">
+            {t.eyebrow}
           </p>
-          <h1 className="text-4xl font-semibold">Menu ideas from your ingredients</h1>
-          <p className="max-w-2xl text-base text-[#7a6f63]">
-            Type the ingredients you have, and the API will return the best matching recipes.
+          <h1 className="text-4xl font-semibold text-[#1f1b16] dark:text-[#f7efe5] sm:text-5xl">
+            {t.title}
+          </h1>
+          <p className="max-w-2xl text-base text-[#7a6f63] dark:text-[#cbbfb3]">
+            {t.subhead}
           </p>
         </header>
 
-        <section className="rounded-3xl border border-[#e6dac8] bg-white/70 p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <label className="text-sm font-semibold">Ingredients (comma separated)</label>
-            <textarea
-              className="h-28 w-full resize-none rounded-2xl border border-[#e6dac8] bg-white px-4 py-3 text-sm"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-            />
+        <section className="rounded-3xl border border-[#e6dac8] bg-white/70 p-6 shadow-sm dark:border-[#3b342b] dark:bg-[#1f1a14]">
+          <div className="space-y-4">
+            <label className="text-sm font-semibold">{t.ingredientsLabel}</label>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {ingredientOptions.map((item) => {
+                const checked = selectedIds.includes(item.en)
+                return (
+                  <label
+                    key={item.en}
+                    className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm transition ${
+                      checked
+                        ? 'border-[#e4572e] bg-[#fff5ef] text-[#1f1b16] dark:bg-[#2a2119]'
+                        : 'border-[#e6dac8] bg-white dark:border-[#3b342b] dark:bg-[#1a1510]'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleIngredient(item.en)}
+                      className="accent-[#e4572e]"
+                    />
+                    {language === 'th' ? item.th : item.en}
+                  </label>
+                )
+              })}
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <button
-                type="submit"
-                disabled={loading}
-                className="rounded-full bg-[#e4572e] px-5 py-2 text-sm font-semibold text-white transition hover:translate-y-[-1px]"
+                type="button"
+                onClick={fetchResults}
+                disabled={loading || ingredients.length === 0}
+                className="rounded-full bg-[#e4572e] px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:bg-[#e0b6a8]"
               >
-                {loading ? 'Loading...' : 'Recommend'}
+                {loading ? t.loading : t.recommend}
+              </button>
+              <button
+                type="button"
+                onClick={clearIngredients}
+                disabled={selectedIds.length === 0}
+                className="rounded-full border border-[#e6dac8] px-4 py-2 text-sm font-semibold text-[#1f1b16] transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#3b342b] dark:text-[#f7efe5]"
+              >
+                {t.clear}
               </button>
               {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
-          </form>
+          </div>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">Results</h2>
+          <h2 className="text-xl font-semibold">{t.resultsTitle}</h2>
+          <p className="text-sm text-[#7a6f63] dark:text-[#cbbfb3]">{t.resultsSubtitle}</p>
           {results.length === 0 && (
-            <p className="rounded-2xl border border-dashed border-[#e6dac8] bg-white/60 px-4 py-3 text-sm text-[#7a6f63]">
-              No results yet. Run a search to see recommendations.
+            <p className="rounded-2xl border border-dashed border-[#e6dac8] bg-white/60 px-4 py-3 text-sm text-[#7a6f63] dark:border-[#3b342b] dark:bg-[#1f1a14] dark:text-[#cbbfb3]">
+              {t.empty}
             </p>
           )}
           <div className="grid gap-4 md:grid-cols-2">
             {results.map((item) => (
-              <article key={item.id} className="rounded-2xl border border-[#e6dac8] bg-white p-4">
-                <h3 className="text-lg font-semibold">{item.name_en || item.name_th}</h3>
-                <p className="text-sm text-[#e4572e]">Score: {item.score}</p>
-                <p className="mt-2 text-sm text-[#7a6f63]">
-                  {item.ai_reason || 'A solid match based on your ingredients.'}
-                </p>
+              <article key={item.id} className="rounded-2xl border border-[#e6dac8] bg-white p-4 shadow-sm dark:border-[#3b342b] dark:bg-[#1f1a14]">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">{getRecipeName(item)}</h3>
+                  <p className="text-sm font-semibold text-[#e4572e]">
+                    {t.score}: {item.score}
+                  </p>
+                  <p className="text-sm text-[#7a6f63] dark:text-[#cbbfb3]">
+                    {item.ai_reason || t.matchedSummary(item.matched.length)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRecipe(item)}
+                    className="rounded-full border border-[#e6dac8] px-3 py-1 text-xs font-semibold text-[#1f1b16] transition dark:border-[#3b342b] dark:text-[#f7efe5]"
+                  >
+                    {t.detail}
+                  </button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6f63] dark:text-[#cbbfb3]">
+                      {t.matched}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.matched.length > 0 ? (
+                        item.matched.map((match) => (
+                          <span key={match} className="rounded-full bg-[#f5e5d6] px-3 py-1 text-xs dark:bg-[#2b2218]">
+                            {match}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="rounded-full bg-[#f5e5d6] px-3 py-1 text-xs text-[#7a6f63] dark:bg-[#2b2218] dark:text-[#cbbfb3]">
+                          {t.noOverlap}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {(language === 'th' ? item.missing_th : item.missing_en)?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6f63] dark:text-[#cbbfb3]">
+                        {t.missing}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(language === 'th' ? item.missing_th : item.missing_en).map((missing) => (
+                          <span key={missing} className="rounded-full bg-[#f0ede8] px-3 py-1 text-xs text-[#7a6f63] dark:bg-[#242019]">
+                            {missing}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(language === 'th' ? item.seasonings_th : item.seasonings_en)?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#7a6f63] dark:text-[#cbbfb3]">
+                        {t.seasonings}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(language === 'th' ? item.seasonings_th : item.seasonings_en).map((season) => (
+                          <span key={season} className="rounded-full bg-[#f5e5d6] px-3 py-1 text-xs dark:bg-[#2b2218]">
+                            {season}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </article>
             ))}
           </div>
         </section>
       </div>
+
+      {selectedRecipe && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-xl dark:bg-[#1f1a14]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">{getRecipeName(selectedRecipe)}</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedRecipe(null)}
+                className="rounded-full border border-[#e6dac8] px-3 py-1 text-sm dark:border-[#3b342b]"
+              >
+                X
+              </button>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-4 text-sm text-[#7a6f63] dark:text-[#cbbfb3]">
+              <span>
+                {t.time}: {selectedRecipe.time_min} {t.minutes}
+              </span>
+              <span>
+                {t.difficulty}: {difficultyMap[language][selectedRecipe.difficulty] || selectedRecipe.difficulty}
+              </span>
+            </div>
+            <div className="mt-4">
+              <p className="text-sm font-semibold">{t.steps}</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-[#7a6f63] dark:text-[#cbbfb3]">
+                {(language === 'th' ? selectedRecipe.steps_th : selectedRecipe.steps_en).map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </div>
+            {(language === 'th' ? selectedRecipe.seasonings_th : selectedRecipe.seasonings_en)?.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-semibold">{t.seasonings}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(language === 'th' ? selectedRecipe.seasonings_th : selectedRecipe.seasonings_en).map((season) => (
+                    <span key={season} className="rounded-full bg-[#f5e5d6] px-3 py-1 text-xs dark:bg-[#2b2218]">
+                      {season}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
